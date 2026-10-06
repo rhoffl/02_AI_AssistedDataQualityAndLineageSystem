@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: quality
+      POSTGRES_USER: quality
+      POSTGRES_PASSWORD: quality
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quality -d quality"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg://quality:quality@postgres:5432/quality
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_PATH: /data
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+    volumes:
+      - dataset_storage:/data
+    ports:
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: celery -A app.worker.celery worker --loglevel=INFO
+    environment:
+      DATABASE_URL: postgresql+psycopg://quality:quality@postgres:5432/quality
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_PATH: /data
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+    volumes:
+      - dataset_storage:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8002
+    ports:
+      - "3002:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  dataset_storage:
+

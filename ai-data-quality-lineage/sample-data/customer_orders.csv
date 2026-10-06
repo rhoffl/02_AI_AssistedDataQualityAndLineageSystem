@@ -1,0 +1,14 @@
+customer_id,email,order_total,status,region
+1001,ana@example.com,125.50,completed,South
+1002,bob@example.com,89.00,completed,West
+1003,,45.25,pending,South
+1004,invalid-email,-30.00,completed,North
+1005,dee@example.com,15000.00,completed,East
+1006,eli@example.com,76.40,pending,South
+1006,eli@example.com,76.40,pending,South
+1007,fay@example.com,,cancelled,West
+1008,gus@example.com,110.10,completed,North
+1009,hal@example.com,99.99,unknown,South
+1010,ivy@example.com,82.00,completed,East
+1011,jay@example.com,91.50,pending,West
+

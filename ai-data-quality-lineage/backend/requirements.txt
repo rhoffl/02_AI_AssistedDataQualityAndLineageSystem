@@ -1,0 +1,14 @@
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+sqlalchemy==2.0.40
+psycopg[binary]==3.2.6
+python-multipart==0.0.20
+pandas==2.2.3
+numpy==2.2.5
+scikit-learn==1.6.1
+pydantic-settings==2.9.1
+celery[redis]==5.5.2
+openai==1.78.1
+pytest==8.3.5
+httpx==0.28.1
+
