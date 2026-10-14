@@ -47,12 +47,20 @@ An API key is optional. Without one, findings receive deterministic, evidence-ba
 
 ## Demonstration walkthrough
 
+Three coordinated profiling datasets are included in `sample-data/`:
+
+1. `customer_orders_baseline.csv` contains 150 clean records and establishes the comparison profile.
+2. `customer_orders_quality_issues.csv` contains missing values, exact duplicates, invalid categories, a negative amount, and numerical outliers.
+3. `customer_orders_distribution_drift.csv` shifts order totals, region mix, payment methods, support-ticket frequency, and email completeness.
+
+For a validation test, upload the baseline and then the quality-issues file to one registered dataset. For a clean drift comparison, register a second dataset and upload the baseline followed by the distribution-drift file. The service compares each upload with the immediately preceding version.
+
 ### 1. Create a dataset
 
 Use the dashboard, or:
 
 ```bash
-curl -X POST http://localhost:8000/api/datasets \
+curl -X POST http://localhost:8002/api/datasets \
   -H 'Content-Type: application/json' \
   -H 'X-User: ron' \
   -d '{"name":"Customer Orders","description":"Data-quality portfolio demonstration"}'
@@ -63,19 +71,19 @@ curl -X POST http://localhost:8000/api/datasets \
 Replace `1` with the returned dataset ID.
 
 ```bash
-curl -X POST http://localhost:8000/api/datasets/1/rules \
+curl -X POST http://localhost:8002/api/datasets/1/rules \
   -H 'Content-Type: application/json' \
   -d '{"column_name":"customer_id","rule_type":"unique","parameters":{},"severity":"high"}'
 
-curl -X POST http://localhost:8000/api/datasets/1/rules \
+curl -X POST http://localhost:8002/api/datasets/1/rules \
   -H 'Content-Type: application/json' \
   -d '{"column_name":"email","rule_type":"regex","parameters":{"pattern":"^[^@]+@[^@]+\\.[^@]+$"},"severity":"medium"}'
 
-curl -X POST http://localhost:8000/api/datasets/1/rules \
+curl -X POST http://localhost:8002/api/datasets/1/rules \
   -H 'Content-Type: application/json' \
   -d '{"column_name":"order_total","rule_type":"min","parameters":{"value":0},"severity":"high"}'
 
-curl -X POST http://localhost:8000/api/datasets/1/rules \
+curl -X POST http://localhost:8002/api/datasets/1/rules \
   -H 'Content-Type: application/json' \
   -d '{"column_name":"status","rule_type":"allowed","parameters":{"values":["completed","pending","cancelled"]},"severity":"medium"}'
 ```
@@ -83,7 +91,7 @@ curl -X POST http://localhost:8000/api/datasets/1/rules \
 ### 3. Upload the intentionally flawed sample
 
 ```bash
-curl -X POST http://localhost:8000/api/datasets/1/upload \
+curl -X POST http://localhost:8002/api/datasets/1/upload \
   -H 'X-User: portfolio-user' \
   -F 'file=@sample-data/customer_orders.csv'
 ```
@@ -95,7 +103,7 @@ The application will identify missing values, duplicates, rule failures, and unu
 Find the version and finding IDs through `/api/findings` and `/api/datasets`.
 
 ```bash
-curl -X POST http://localhost:8000/api/versions/1/proposals \
+curl -X POST http://localhost:8002/api/versions/1/proposals \
   -H 'Content-Type: application/json' \
   -H 'X-User: quality-agent' \
   -d '{"finding_id":1,"action":"drop_exact_duplicates","parameters":{},"rationale":"Remove one exact duplicate while preserving all distinct records.","confidence":0.99,"risk":"medium"}'
@@ -111,13 +119,13 @@ Supported deterministic actions are:
 ### 5. Review and execute
 
 ```bash
-curl -X POST http://localhost:8000/api/proposals/1/decision \
+curl -X POST http://localhost:8002/api/proposals/1/decision \
   -H 'Content-Type: application/json' \
   -H 'X-User: data-steward' \
   -H 'X-Role: steward' \
   -d '{"decision":"approved","comment":"Evidence verified against the source."}'
 
-curl -X POST http://localhost:8000/api/proposals/1/execute \
+curl -X POST http://localhost:8002/api/proposals/1/execute \
   -H 'X-User: data-steward' \
   -H 'X-Role: steward'
 ```
@@ -144,6 +152,10 @@ For demonstration, identity is supplied through `X-User` and `X-Role`. Approval 
 ```bash
 docker compose run --rm api pytest -q
 ```
+
+The end-to-end governance scenario is documented in `TEST_CASE.md` and automated by `backend/tests/test_governed_process.py`. It verifies detection, explanations, confidence-scored suggestions, role-protected approval, immutable correction, lineage, notifications, and audit evidence.
+
+GitHub Actions runs the backend tests and frontend build for pull requests and pushes. A successful push to `main` also publishes API and frontend container images to GitHub Container Registry.
 
 ## Production hardening
 
